@@ -14,6 +14,7 @@
 #include "carla/client/GarbageCollectionPolicy.h"
 #include "carla/client/TrafficLight.h"
 #include "carla/client/Vehicle.h"
+#include "carla/client/Vessel.h"
 #include "carla/client/Walker.h"
 #include "carla/client/World.h"
 #include "carla/client/WorldSnapshot.h"
@@ -520,6 +521,10 @@ namespace detail {
 
     void ApplyControlToVehicle(Vehicle &vehicle, const rpc::VehicleControl &control) {
       _client.ApplyControlToVehicle(vehicle.GetId(), control);
+    }
+
+    void ApplyControlToVessel(Vessel &vessel, const rpc::VesselControl &control) {
+      _client.ApplyControlToVessel(vessel.GetId(), control);
     }
 
     void ApplyAckermannControlToVehicle(Vehicle &vehicle, const rpc::VehicleAckermannControl &control) {

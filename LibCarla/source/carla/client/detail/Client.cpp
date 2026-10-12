@@ -18,6 +18,7 @@
 #include "carla/rpc/Response.h"
 #include "carla/rpc/VehicleAckermannControl.h"
 #include "carla/rpc/VehicleControl.h"
+#include "carla/rpc/VesselControl.h"
 #include "carla/rpc/VehicleLightState.h"
 #include "carla/rpc/WalkerBoneControlIn.h"
 #include "carla/rpc/WalkerBoneControlOut.h"
@@ -454,6 +455,10 @@ namespace detail {
 
   void Client::ApplyControlToVehicle(rpc::ActorId vehicle, const rpc::VehicleControl &control) {
     _pimpl->AsyncCall("apply_control_to_vehicle", vehicle, control);
+  }
+
+  void Client::ApplyControlToVessel(rpc::ActorId vessel, const rpc::VesselControl &control) {
+    _pimpl->AsyncCall("apply_control_to_vessel", vessel, control);
   }
 
   void Client::ApplyAckermannControlToVehicle(rpc::ActorId vehicle, const rpc::VehicleAckermannControl &control) {

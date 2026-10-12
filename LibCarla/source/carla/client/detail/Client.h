@@ -48,6 +48,7 @@ namespace rpc {
   class DebugShape;
   class VehicleAckermannControl;
   class VehicleControl;
+  class VesselControl;
   class WalkerControl;
   class WalkerBoneControlIn;
   class WalkerBoneControlOut;
@@ -270,6 +271,10 @@ namespace detail {
     void ApplyControlToVehicle(
         rpc::ActorId vehicle,
         const rpc::VehicleControl &control);
+
+    void ApplyControlToVessel(
+        rpc::ActorId vessel,
+        const rpc::VesselControl &control);
 
     void ApplyAckermannControlToVehicle(
         rpc::ActorId vehicle,
