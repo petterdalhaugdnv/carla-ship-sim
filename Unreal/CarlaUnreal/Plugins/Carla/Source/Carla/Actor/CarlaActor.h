@@ -9,6 +9,7 @@
 #include "Carla/Actor/ActorInfo.h"
 #include "Carla/Actor/ActorData.h"
 #include "Carla/Vehicle/CarlaWheeledVehicle.h"
+#include "Carla/Vessel/VesselControl.h"
 #include "Carla/Walker/WalkerController.h"
 #include "Carla/Traffic/TrafficLightState.h"
 #include "Carla/Server/CarlaServerResponse.h"
@@ -35,6 +36,7 @@ public:
     TrafficLight,
     TrafficSign,
     Sensor,
+    Vessel,
     INVALID
   };
 
@@ -290,6 +292,11 @@ public:
       const FVehicleControl&, const EVehicleInputPriority&)
   {
     return ECarlaServerResponse::ActorTypeMismatch;
+  }
+
+  virtual ECarlaServerResponse ApplyControlToVessel(const FVesselControl&)
+  {
+    return ECarlaServerResponse::NotAVessel;
   }
 
   virtual ECarlaServerResponse ApplyAckermannControlToVehicle(
@@ -629,4 +636,17 @@ public:
       carla::rpc::ActorState InState,
       UWorld* World);
 
+};
+
+class FVesselActor : public FCarlaActor
+{
+public:
+  FVesselActor(
+      IdType ActorId,
+      AActor* Actor,
+      TSharedPtr<const FActorInfo> Info,
+      carla::rpc::ActorState InState,
+      UWorld* World);
+
+  virtual ECarlaServerResponse ApplyControlToVessel(const FVesselControl&) final;
 };

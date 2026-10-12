@@ -9,6 +9,7 @@
 #include "Carla/OpenDrive/OpenDrive.h"
 #include "Carla/Util/NavigationMesh.h"
 #include "Carla/Vehicle/CarlaWheeledVehicle.h"
+#include "Carla/Vessel/CarlaVessel.h"
 #include "Carla/Walker/WalkerController.h"
 #include "Carla/Walker/WalkerBase.h"
 #include "Carla/Game/Tagger.h"
@@ -119,6 +120,17 @@ FOtherActor::FOtherActor(
   Type = ActorType::Other;
   ActorData = MakeShared<FActorData>();
 }
+FVesselActor::FVesselActor(
+    IdType ActorId,
+    AActor* Actor,
+    TSharedPtr<const FActorInfo> Info,
+    carla::rpc::ActorState InState,
+    UWorld* World)
+    : FCarlaActor(ActorId, Actor, Info, InState, World)
+{
+  Type = ActorType::Vessel;
+  ActorData = MakeShared<FActorData>();
+}
 
 TSharedPtr<FCarlaActor> FCarlaActor::ConstructCarlaActor(
       IdType ActorId,
@@ -144,6 +156,9 @@ TSharedPtr<FCarlaActor> FCarlaActor::ConstructCarlaActor(
     break;
   case ActorType::Sensor:
     return MakeShared<FSensorActor>(ActorId, Actor, std::move(Info), InState, World);
+    break;
+  case ActorType::Vessel:
+    return MakeShared<FVesselActor>(ActorId, Actor, std::move(Info), InState, World);
     break;
   default:
     return MakeShared<FOtherActor>(ActorId, Actor, std::move(Info), InState, World);
@@ -825,6 +840,21 @@ ECarlaServerResponse FVehicleActor::SetActorSimulatePhysics(bool bEnabled)
     }
     CarlaVehicle->SetSimulatePhysics(bEnabled);
   }
+  return ECarlaServerResponse::Success;
+}
+
+ECarlaServerResponse FVesselActor::ApplyControlToVessel(const FVesselControl& Control)
+{
+  if (IsDormant())
+  {
+    return ECarlaServerResponse::FunctionNotAvailiableWhenDormant;
+  }
+  auto Vessel = Cast<ACarlaVessel>(GetActor());
+  if (Vessel == nullptr)
+  {
+    return ECarlaServerResponse::NotAVessel;
+  }
+  Vessel->ApplyVesselControl(Control);
   return ECarlaServerResponse::Success;
 }
 

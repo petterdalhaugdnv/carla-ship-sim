@@ -11,6 +11,7 @@
 #include "Carla/Traffic/TrafficLightBase.h"
 #include "Carla/Util/BoundingBoxCalculator.h"
 #include "Carla/Sensor/Sensor.h"
+#include "Carla/Vessel/CarlaVessel.h"
 
 #include <util/disable-ue4-macros.h>
 #include "carla/streaming/Token.h"
@@ -29,7 +30,11 @@ static FCarlaActor::ActorType FActorRegistry_GetActorType(const AActor *Actor)
     return FCarlaActor::ActorType::INVALID;
   }
 
-  if (nullptr != Cast<ACarlaWheeledVehicle>(Actor))
+  if (nullptr != Cast<ACarlaVessel>(Actor))
+  {
+    return FCarlaActor::ActorType::Vessel;
+  }
+  else if (nullptr != Cast<ACarlaWheeledVehicle>(Actor))
   {
     return FCarlaActor::ActorType::Vehicle;
   }

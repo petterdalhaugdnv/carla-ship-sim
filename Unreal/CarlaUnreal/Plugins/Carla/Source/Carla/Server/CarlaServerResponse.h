@@ -15,6 +15,7 @@ enum class ECarlaServerResponse
   NullActor,
   MissingActor,
   NotAVehicle,
+  NotAVessel,
   WalkerDead,
   NotAWalker,
   WalkerIncompatibleController,
