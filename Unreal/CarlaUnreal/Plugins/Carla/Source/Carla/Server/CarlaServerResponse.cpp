@@ -20,6 +20,8 @@ FString CarlaGetStringError(ECarlaServerResponse Response)
       return "Actor is missing";
     case ECarlaServerResponse::NotAVehicle:
       return "Actor is not a Vehicle";
+    case ECarlaServerResponse::NotAVessel:
+      return "Actor is not a Vessel";
     case ECarlaServerResponse::WalkerDead:
       return "Walker is already dead";
     case ECarlaServerResponse::NotAWalker:

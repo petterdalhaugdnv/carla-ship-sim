@@ -13,6 +13,7 @@
 #include "Carla/Util/NavigationMesh.h"
 #include "Carla/Util/RayTracer.h"
 #include "Carla/Vehicle/CarlaWheeledVehicle.h"
+#include "Carla/Vessel/VesselControl.h"
 #include "Carla/Walker/WalkerController.h"
 #include "Carla/Walker/WalkerBase.h"
 #include "Carla/Game/Tagger.h"
@@ -53,6 +54,7 @@
 #include <carla/rpc/VehicleAckermannControl.h>
 #include <carla/rpc/VehicleControl.h>
 #include <carla/rpc/VehiclePhysicsControl.h>
+#include <carla/rpc/VesselControl.h>
 #include <carla/rpc/VehicleLightState.h>
 #include <carla/rpc/VehicleLightStateList.h>
 #include <carla/rpc/WalkerBoneControlIn.h>
@@ -1666,6 +1668,30 @@ BIND_SYNC(is_sensor_enabled_for_ros) << [this](carla::streaming::detail::stream_
     {
       return RespondError(
           "apply_control_to_vehicle",
+          Response,
+          " Actor Id: " + FString::FromInt(ActorId));
+    }
+    return R<void>::Success();
+  };
+
+  BIND_SYNC(apply_control_to_vessel) << [this](
+      cr::ActorId ActorId,
+      cr::VesselControl Control) -> R<void>
+  {
+    REQUIRE_CARLA_EPISODE();
+    FCarlaActor* CarlaActor = Episode->FindCarlaActor(ActorId);
+    if (!CarlaActor)
+    {
+      return RespondError(
+          "apply_control_to_vessel",
+          ECarlaServerResponse::ActorNotFound,
+          " Actor Id: " + FString::FromInt(ActorId));
+    }
+    ECarlaServerResponse Response = CarlaActor->ApplyControlToVessel(Control);
+    if (Response != ECarlaServerResponse::Success)
+    {
+      return RespondError(
+          "apply_control_to_vessel",
           Response,
           " Actor Id: " + FString::FromInt(ActorId));
     }

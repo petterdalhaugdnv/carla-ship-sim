@@ -6,6 +6,7 @@
 
 #include "Carla/Game/CarlaGameModeBase.h"
 #include "Carla.h"
+#include "Carla/Actor/Factory/VesselActorFactory.h"
 #include "Carla/Game/Tagger.h"
 #include "Carla/Game/CarlaHUD.h"
 #include "Carla/Game/CarlaStatics.h"
@@ -417,6 +418,24 @@ void ACarlaGameModeBase::SpawnActorFactories()
       {
         UE_LOG(LogCarla, Error, TEXT("Failed to spawn actor spawner"));
       }
+    }
+  }
+
+  // Vessels need no blueprint configuration, so make "vessel.mass.kvlcc2"
+  // available even if no vessel factory is listed in ActorFactories.
+  const bool bHasVesselFactory = ActorFactoryInstances.ContainsByPredicate(
+      [](const ACarlaActorFactory *Factory) { return Cast<AVesselActorFactory>(Factory) != nullptr; });
+  if (!bHasVesselFactory)
+  {
+    auto *VesselFactory = World->SpawnActor<AVesselActorFactory>(AVesselActorFactory::StaticClass());
+    if (VesselFactory != nullptr)
+    {
+      Episode->RegisterActorFactory(*VesselFactory);
+      ActorFactoryInstances.Add(VesselFactory);
+    }
+    else
+    {
+      UE_LOG(LogCarla, Error, TEXT("Failed to spawn default vessel actor factory"));
     }
   }
 }
