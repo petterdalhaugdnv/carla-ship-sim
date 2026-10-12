@@ -16,6 +16,7 @@
 #include <rpc/rpc_error.h>
 #include <carla/rpc/VehicleAckermannControl.h>
 #include <carla/rpc/VehicleControl.h>
+#include <carla/rpc/VesselControl.h>
 #include <carla/rpc/VehiclePhysicsControl.h>
 #include <carla/rpc/WheelPhysicsControl.h>
 #include <carla/rpc/WalkerControl.h>
@@ -32,6 +33,7 @@
 #include <carla/client/Actor.h>
 #include <carla/client/TrafficLight.h>
 #include <carla/client/Vehicle.h>
+#include <carla/client/Vessel.h>
 #include <carla/client/Walker.h>
 #include <carla/client/WalkerAIController.h>
 #include <carla/client/LightManager.h>
@@ -421,6 +423,12 @@ namespace rpc {
         << ", reverse=" << boolalpha(control.reverse)
         << ", manual_gear_shift=" << boolalpha(control.manual_gear_shift)
         << ", gear=" << std::to_string(control.gear) << ')';
+    return out;
+  }
+
+  inline std::ostream &operator<<(std::ostream &out, const VesselControl &control) {
+    out << "VesselControl(rudder_angle=" << std::to_string(control.rudder_angle)
+        << ", propeller_speed=" << std::to_string(control.propeller_speed) << ')';
     return out;
   }
 

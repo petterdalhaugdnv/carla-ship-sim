@@ -460,6 +460,26 @@
         Close the door `door_idx` if the vehicle has it. Use carla.VehicleDoor.All to close all available doors.
 
 
+  - class_name: Vessel
+    parent: carla.Actor
+    # - DESCRIPTION ------------------------
+    doc: >
+      This class inherits from carla.Actor and defines marine vessels (blueprint ids starting with `vessel.`). Vessels are driven by a rudder and a propeller command (carla.VesselControl) that feeds the server-side MMG 3-DOF dynamics.
+    # - METHODS ----------------------------
+    methods:
+    - def_name: apply_control
+      params:
+      - param_name: control
+        type: carla.VesselControl
+      doc: >
+        The control is held by the simulator until a new one is applied.
+    # --------------------------------------
+    - def_name: get_control
+      return: carla.VesselControl
+      doc: >
+        The client returns the last control applied by this client. The method does not call the simulator.
+
+
   - class_name: Walker
     parent: carla.Actor
     # - DESCRIPTION ------------------------

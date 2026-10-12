@@ -305,6 +305,17 @@ void export_control() {
     .def(self_ns::str(self_ns::self))
   ;
 
+  class_<cr::VesselControl>("VesselControl")
+    .def(init<float, float>(
+      (arg("rudder_angle") = 0.0f,
+      arg("propeller_speed") = 0.0f)))
+    .def_readwrite("rudder_angle", &cr::VesselControl::rudder_angle)
+    .def_readwrite("propeller_speed", &cr::VesselControl::propeller_speed)
+    .def("__eq__", &cr::VesselControl::operator==)
+    .def("__ne__", &cr::VesselControl::operator!=)
+    .def(self_ns::str(self_ns::self))
+  ;
+
   class_<cr::VehicleAckermannControl>("VehicleAckermannControl")
     .def(init<float, float, float, float, float>(
       (arg("steer") = 0.0f,

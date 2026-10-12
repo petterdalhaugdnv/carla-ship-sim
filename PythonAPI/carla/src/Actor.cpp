@@ -199,6 +199,11 @@ void export_actor() {
       .def(self_ns::str(self_ns::self))
   ;
 
+  class_<cc::Vessel, bases<cc::Actor>, boost::noncopyable, std::shared_ptr<cc::Vessel>>("Vessel", no_init)
+      .def("apply_control", &cc::Vessel::ApplyControl, (arg("control")))
+      .def("get_control", &cc::Vessel::GetControl)
+  ;
+
   class_<cc::Walker, bases<cc::Actor>, boost::noncopyable, std::shared_ptr<cc::Walker>>("Walker", no_init)
       .def("apply_control", &ApplyControl<cr::WalkerControl>, (arg("control")))
       .def("get_control", &cc::Walker::GetWalkerControl)

@@ -3,6 +3,44 @@
 
   # - CLASSES ------------------------------
   classes:
+  - class_name: VesselControl
+    # - DESCRIPTION ------------------------
+    doc: >
+      Rudder and propeller command for a vessel. SI units, radians.
+    # - PROPERTIES -------------------------
+    instance_variables:
+    - var_name: rudder_angle
+      type: float
+      doc: >
+        Rudder angle in radians, positive to starboard. The server clamps it to +-35 degrees and applies a rate limit. Default is 0.0.
+    # --------------------------------------
+    - var_name: propeller_speed
+      type: float
+      doc: >
+        Propeller shaft speed in rad/s, non-negative. The server applies a first-order lag. Default is 0.0.
+# - METHODS ----------------------------
+    methods:
+    - def_name: __init__
+      params:
+      - param_name: rudder_angle
+        type: float
+        default: 0.0
+      - param_name: propeller_speed
+        type: float
+        default: 0.0
+    # --------------------------------------
+    - def_name: __eq__
+      params:
+      - param_name: other
+        type: carla.VesselControl
+    # --------------------------------------
+    - def_name: __ne__
+      params:
+      - param_name: other
+        type: carla.VesselControl
+    # --------------------------------------
+    - def_name: __str__
+
   - class_name: VehicleControl
     # - DESCRIPTION ------------------------
     doc: >
