@@ -7,6 +7,11 @@ simulator with realistic camera, radar and LiDAR input.
 Work is additive: the vehicle code is untouched and stays as a reference until
 the vessel path runs end to end.
 
+`mass-core-main` (a sibling directory, outside this repository) was used only as a
+read-only reference for the marine dynamics model and its KVLCC2 parameters. It is
+not a dependency and nothing in the fork is planned to integrate with it. The
+`vessel.mass.kvlcc2` blueprint id contains "mass" for that historical reason only.
+
 | File | Content |
 |------|---------|
 | [architecture.md](architecture.md) | Vessel classes, data flow, frames and units |
