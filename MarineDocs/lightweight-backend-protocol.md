@@ -174,8 +174,17 @@ Verified by running the unmodified `carla` wheel against the lightweight backend
   `set_episode_settings(synchronous_mode=True)` stops that; elapsed time therefore
   includes the asynchronous ticks before the switch, as in CARLA.
 
+- **Radar stream** (implemented, verified with the real client): sensor type index 9.
+  Header `<QQd6f` (type, frame, elapsed seconds, world location x y z, pitch yaw roll),
+  then `<4f` per detection (velocity, azimuth, altitude, depth). Each sensor has its
+  own stream id (starting at 2; the snapshot is stream 1), reached by
+  `get_sensor_token(stream_id)` and the same u32-LE stream-id handshake. The sensor
+  stream is independent of the snapshot stream, so frames must be matched by number.
+  `get_actor_definitions` must list `sensor.other.radar`, and `spawn_actor_with_parent`
+  must return the sensor description with `stream_token` as `bin`.
+
 ## Not implemented in the lightweight backend
 
-`spawn_actor_with_parent` (returns an error), sensors and their streams, weather,
-maps, batch commands, spectator, recorder. Bounding box height (10 m half-extent) is a
+Sensors other than radar (LiDAR, cameras), weather, maps, batch commands,
+spectator, recorder. `spawn_actor_with_parent` only creates `sensor.other.radar`. Bounding box height (10 m half-extent) is a
 placeholder.
