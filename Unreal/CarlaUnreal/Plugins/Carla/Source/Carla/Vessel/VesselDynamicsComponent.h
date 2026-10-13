@@ -6,7 +6,7 @@
 #include "Carla/Vessel/VesselControl.h"
 
 #include <util/disable-ue4-macros.h>
-#include "Carla/Vessel/VesselDynamicsModel.h"
+#include "Carla/Vessel/VesselRunner.h"
 #include <util/enable-ue4-macros.h>
 
 #include <util/ue-header-guard-begin.h>
@@ -16,8 +16,10 @@
 
 #include "VesselDynamicsComponent.generated.h"
 
-/// Kinematic (non-physics) vessel driver. Integrates the MMG 3-DOF model with
-/// fixed substeps and writes the resulting planar pose to the owning actor.
+/// Kinematic (non-physics) vessel driver. Advances an engine-free
+/// carla::vessel::VesselRunner (MMG 3-DOF) by the tick's DeltaTime, in equal
+/// substeps of at most 0.02 s, and writes the resulting planar pose to the owning
+/// actor.
 ///
 /// Frame mapping: NED north -> UE +X, NED east -> UE +Y, heading (clockwise
 /// from north) -> UE yaw in degrees. Model units are SI, UE units are cm. The
@@ -28,9 +30,6 @@ class CARLA_API UVesselDynamicsComponent : public UActorComponent
   GENERATED_BODY()
 
 public:
-
-  /// Fixed integration step, in seconds.
-  static constexpr double FixedSubstep = 0.02;
 
   UVesselDynamicsComponent();
 
@@ -57,7 +56,10 @@ public:
   UFUNCTION(BlueprintCallable, Category = "Vessel")
   void Reset();
 
-  const carla::vessel::MMGState &GetState() const { return State; }
+  const carla::vessel::MMGState &GetState() const { return Runner.GetState(); }
+
+  /// Simulated seconds integrated since the last reset.
+  double GetSimTime() const { return Runner.GetSimTime(); }
 
   /// World-frame velocity in cm/s.
   UFUNCTION(BlueprintCallable, Category = "Vessel")
@@ -70,15 +72,9 @@ private:
 
   void WritePoseToActor();
 
-  carla::vessel::MMG3DOF Model;
-
-  carla::vessel::VesselActuators Actuators;
-
-  carla::vessel::MMGState State = {};
+  carla::vessel::VesselRunner Runner;
 
   FVesselControl Control;
-
-  double Accumulator = 0.0;
 
   bool bInitialized = false;
 

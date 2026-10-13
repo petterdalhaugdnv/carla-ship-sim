@@ -12,6 +12,8 @@ the vessel path runs end to end.
 | [architecture.md](architecture.md) | Vessel classes, data flow, frames and units |
 | [setup.md](setup.md) | Building and testing what exists today |
 | [plan.md](plan.md) | Commit history, status, limitations, next steps |
+| [unreal-integration.md](unreal-integration.md) | Static verification of tick order, time sync, velocity, frames |
+| [lightweight-backend-protocol.md](lightweight-backend-protocol.md) | Minimal CARLA protocol subset for a non-Unreal backend |
 | `decisions/` | Reserved for decision records (empty) |
 
 ## Status (branch `feature/native-vessel-prototype`, base `b544fa7cb`)

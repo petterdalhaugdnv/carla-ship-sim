@@ -14,12 +14,14 @@ namespace {
 
   constexpr double MetersToCm = 100.0;
   constexpr double CmToMeters = 0.01;
-  constexpr double Pi = 3.14159265358979323846;
-  constexpr double RadToDeg = 180.0 / Pi;
-  constexpr double DegToRad = Pi / 180.0;
-  constexpr double Epsilon = 1e-9;
-  // Bound the catch-up work after a long hitch.
-  constexpr int32 MaxSubstepsPerTick = 500;
+
+  carla::vessel::PoseMeters ToPoseMeters(const FVector &Location, const FRotator &Rotation)
+  {
+    return {
+        Location.X * CmToMeters,
+        Location.Y * CmToMeters,
+        static_cast<double>(Rotation.Yaw)};
+  }
 
 } // namespace
 
@@ -43,22 +45,19 @@ void UVesselDynamicsComponent::ApplyControl(const FVesselControl &InControl)
 
 void UVesselDynamicsComponent::InitializeFromActorTransform()
 {
-  State = carla::vessel::MMGState{};
-  Actuators.Reset();
-  Accumulator = 0.0;
+  carla::vessel::PoseMeters Pose;
 
   const AActor *Owner = GetOwner();
   if (Owner != nullptr)
   {
     const FVector Location = Owner->GetActorLocation();
     const FRotator Rotation = Owner->GetActorRotation();
-    State.North = Location.X * CmToMeters;
-    State.East = Location.Y * CmToMeters;
-    State.Heading = static_cast<double>(Rotation.Yaw) * DegToRad;
+    Pose = ToPoseMeters(Location, Rotation);
     LastWrittenLocation = Location;
     LastWrittenRotation = Rotation;
     bInitialized = true;
   }
+  Runner.Reset(Pose);
 }
 
 void UVesselDynamicsComponent::Reset()
@@ -68,16 +67,13 @@ void UVesselDynamicsComponent::Reset()
 
 FVector UVesselDynamicsComponent::GetVelocity() const
 {
-  const double CosH = std::cos(State.Heading);
-  const double SinH = std::sin(State.Heading);
-  const double NorthRate = State.U * CosH - State.V * SinH;
-  const double EastRate = State.U * SinH + State.V * CosH;
-  return FVector(NorthRate * MetersToCm, EastRate * MetersToCm, 0.0);
+  const carla::vessel::WorldVelocity V = Runner.GetWorldVelocity();
+  return FVector(V.X * MetersToCm, V.Y * MetersToCm, 0.0);
 }
 
 float UVesselDynamicsComponent::GetYawRateDegPerSec() const
 {
-  return static_cast<float>(State.R * RadToDeg);
+  return static_cast<float>(Runner.GetYawRateDegPerSec());
 }
 
 void UVesselDynamicsComponent::TickComponent(
@@ -104,46 +100,24 @@ void UVesselDynamicsComponent::TickComponent(
   if (!CurrentLocation.Equals(LastWrittenLocation, 0.01f) ||
       !CurrentRotation.Equals(LastWrittenRotation, 0.01f))
   {
-    State.North = CurrentLocation.X * CmToMeters;
-    State.East = CurrentLocation.Y * CmToMeters;
-    State.Heading = static_cast<double>(CurrentRotation.Yaw) * DegToRad;
+    Runner.SetPose(ToPoseMeters(CurrentLocation, CurrentRotation));
   }
 
-  Accumulator += static_cast<double>(DeltaTime);
-
-  const carla::vessel::ActuatorCommand Command{
+  Runner.SetControl({
       static_cast<double>(Control.RudderAngle),
-      static_cast<double>(Control.PropellerSpeed)};
+      static_cast<double>(Control.PropellerSpeed)});
 
-  int32 Steps = 0;
-  while (Accumulator + Epsilon >= FixedSubstep && Steps < MaxSubstepsPerTick)
+  const carla::vessel::AdvanceResult Result = Runner.Advance(static_cast<double>(DeltaTime));
+  if (Result.NonFinite)
   {
-    const carla::vessel::MMGInputs Inputs = Actuators.Step(Command, FixedSubstep);
-    const carla::vessel::MMGState Next = Model.Step(State, Inputs, FixedSubstep);
-    if (std::isfinite(Next.North) && std::isfinite(Next.East) &&
-        std::isfinite(Next.Heading) && std::isfinite(Next.U) &&
-        std::isfinite(Next.V) && std::isfinite(Next.R))
-    {
-      State = Next;
-    }
-    else
-    {
-      UE_LOG(LogCarla, Warning, TEXT("Vessel dynamics produced a non-finite state; resetting velocities."));
-      State.U = State.V = State.R = 0.0;
-    }
-    Accumulator -= FixedSubstep;
-    ++Steps;
+    UE_LOG(LogCarla, Warning, TEXT("Vessel dynamics produced a non-finite state; resetting velocities."));
   }
-  if (Steps == MaxSubstepsPerTick)
+  if (Result.Truncated)
   {
-    Accumulator = 0.0;
-  }
-  if (Accumulator < 0.0)
-  {
-    Accumulator = 0.0;
+    UE_LOG(LogCarla, Warning, TEXT("Vessel dynamics step budget exceeded; simulated time was dropped."));
   }
 
-  if (Steps > 0)
+  if (Result.Substeps > 0)
   {
     WritePoseToActor();
   }
@@ -158,13 +132,14 @@ void UVesselDynamicsComponent::WritePoseToActor()
   }
   const FVector OldLocation = Owner->GetActorLocation();
   const FRotator OldRotation = Owner->GetActorRotation();
+  const carla::vessel::PoseMeters Pose = Runner.GetPose();
   const FVector NewLocation(
-      State.North * MetersToCm,
-      State.East * MetersToCm,
+      Pose.X * MetersToCm,
+      Pose.Y * MetersToCm,
       OldLocation.Z);
   const FRotator NewRotation(
       OldRotation.Pitch,
-      static_cast<float>(State.Heading * RadToDeg),
+      static_cast<float>(Pose.YawDeg),
       OldRotation.Roll);
   Owner->SetActorLocationAndRotation(
       NewLocation, NewRotation, false, nullptr, ETeleportType::None);

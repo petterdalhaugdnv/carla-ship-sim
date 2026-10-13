@@ -3,14 +3,17 @@
 Only the UE-free parts can be built and tested without the Unreal Engine fork.
 Use a build directory outside the repository (`Build/` is not git-ignored).
 
-## Dynamics unit test (no dependencies)
+## Dynamics and runner unit tests (no dependencies)
 
 ```
 cd Unreal/CarlaUnreal/Plugins/Carla/Source/Carla/Vessel/Tests
 g++ -std=c++17 -Wall -Wextra -O2 VesselDynamicsModelTest.cpp -o /tmp/vessel_test && /tmp/vessel_test
+g++ -std=c++17 -Wall -Wextra -O2 VesselRunnerTest.cpp -o /tmp/vessel_runner_test && /tmp/vessel_runner_test
 ```
 
-Checks 30 reference samples against the Python model (`generate_mmg_reference.py`, which needs the `mass-core-main` checkout), plus rest, heading wrap, rudder rate and shaft lag. Last result: worst scaled error 1.11e-15.
+`VesselDynamicsModelTest` checks 30 reference samples against the Python model (`generate_mmg_reference.py`, which needs the `mass-core-main` checkout), plus rest, heading wrap, rudder rate and shaft lag. Last result: worst scaled error 1.11e-15.
+
+`VesselRunnerTest` checks that the runner is bit-identical to direct model and actuator stepping, that integrated time equals the tick length for ticks that are not multiples of 0.02 s, tick-size invariance, invalid `dt`, step-budget truncation, teleport and reset, the heading/yaw/velocity frame conversion, and non-finite handling. It also passes under `-fsanitize=address,undefined`.
 
 ## C++ client and Python API (no UE)
 
