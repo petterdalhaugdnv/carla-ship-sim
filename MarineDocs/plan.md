@@ -16,6 +16,7 @@
 | `95274dd98` | Fix `carla.Vessel.get_control` binding (needs `copy_const_reference`; found by the Python build) |
 | `f0ccb5cea` | `MarineDocs/` documentation |
 | branch `feature/vessel-engine-free-runner` | `VesselRunner.h` extracted from the component, component refactored onto it, vessel angular velocity in the snapshot, runner tests, Unreal-integration and lightweight-protocol docs (see `git log`) |
+| branch `feature/vessel-lightweight-backend` | `PythonAPI/lightweight_backend/`: Python msgpack-RPC + streaming server reusing `VesselRunner` through a ctypes shim, and a conformance test (see `lightweight-backend.md`) |
 
 ## Validation
 
@@ -26,7 +27,9 @@
 | `carla-client` build (265/265) | Passed, contains `Vessel::ApplyControl` |
 | `carla-python-api` wheel, import, `VesselControl`, `Vessel` methods | Passed |
 | UE build, UHT, runtime (incl. refactored component, `WorldObserver` change) | Not run |
-| End-to-end spawn | Not run |
+| End-to-end spawn, sync ticks, `apply_control`, pose/velocity/timestamps vs `VesselRunner` (lightweight backend, real client, 200 ticks, `test_conformance.py`) | Passed (12 checks, 2 runs) |
+| Same script against an Unreal server | Not run |
+| End-to-end spawn on Unreal | Not run |
 
 ## Known limitations
 
@@ -42,7 +45,7 @@
 
 ## Next steps
 
-1. Lightweight backend: implement the protocol subset in `lightweight-backend-protocol.md` on top of `VesselRunner`, plus the conformance script.
+1. Lightweight backend, next increment: synthetic radar and LiDAR payloads, attached sensors (`spawn_actor_with_parent`), then a simple visual view. The base (spawn, sync tick, control) is done.
 2. UE toolchain: CARLA UE 5.3 fork, content, plugin build.
 3. Flat water map (blocking `ECC_GameTraceChannel2`) and a ship mesh Blueprint subclass.
 4. Synchronous-mode test: spawn `vessel.mass.kvlcc2`, attach camera, LiDAR and radar, send `VesselControl` each tick, check pose, frame numbers and `sensor_transform`.

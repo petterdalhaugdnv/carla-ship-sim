@@ -6,10 +6,11 @@ synchronously. It must advance the vessel with `carla::vessel::VesselRunner`
 (`Unreal/.../Carla/Vessel/VesselRunner.h`, header-only, standard library only) so
 the dynamics are identical to the Unreal backend.
 
-Everything below was read from the client sources under `LibCarla/source/carla/`
-and has **not** yet been exercised against a server. Items marked *to confirm* need
-a check when the backend is written. The client library builds and the wheel
-imports (see `setup.md`); the protocol itself is untested.
+Everything below was first read from the client sources under
+`LibCarla/source/carla/`. The lightweight backend in `PythonAPI/lightweight_backend/`
+has since been exercised against the real `carla` Python client (see
+"Confirmed wire details" at the end); the Unreal server has not been tested. The
+remaining *to confirm* marks are superseded by that section.
 
 ## Transport layers
 
@@ -135,3 +136,46 @@ apply a control each tick, and check:
 - pose and velocity match a local `VesselRunner` run to numerical tolerance;
 - `carla.VesselControl` round-trips and `get_control()` returns the last command;
 - a spawned sensor reports `frame` and `timestamp` equal to the snapshot's.
+
+Implemented as `PythonAPI/lightweight_backend/test_conformance.py` (everything
+except the sensor check, since the lightweight backend has no sensors yet). It uses
+the real client, starts the backend in a subprocess (the client holds the GIL
+during blocking calls, so an in-process server deadlocks), or targets another
+server with `--external --host H --port P`.
+
+## Confirmed wire details
+
+Verified by running the unmodified `carla` wheel against the lightweight backend.
+
+- **Request**: `[0, msgid, method, [metadata, args...]]`; `metadata` is `[is_async]`
+  (`rpc/Metadata.h`). Reply: `[1, msgid, error, result]`; unknown methods return a
+  string error.
+- **`Response<T>`**: `[[1, value]]` on success, `[[0, [message]]]` on error (a
+  `std::variant` is `[index, value]`, wrapped in the one-element array). `Response<void>`:
+  `[[false]]` on success, `[[true, [message]]]` on error (`std::optional` is `[true, v]`
+  or `[false]`). Adaptors are in `MsgPackAdaptors.h`.
+- **Token**: `[bytes24]` (sent as msgpack `bin`), packed `<IHBB` plus 4 address bytes,
+  zero padded. `get_episode_info` returns the token with no address; the client then
+  calls `get_sensor_token(stream_id)`, which must return the address and port to use.
+- **Streaming**: the client sends `uint32` little-endian `stream_id`; each message is
+  `uint32` size (`message_size_type`) + payload. Streaming port is RPC port + 1 here.
+- **Snapshot payload** (little-endian, packed): sensor header `<QQd6f` (48 bytes:
+  `sensor_type` = 16 for `FWorldObserver` (its index in `SensorRegistry`), `frame`,
+  elapsed seconds, transform), episode header `<QdfiiiI` (36 bytes), then 119-byte
+  `ActorDynamicState` records: `<IB` (id, state 1 = active), `6f` transform (x, y, z,
+  pitch, yaw, roll), `3f` velocity, `3f` angular velocity (deg/s), `3f` acceleration,
+  54 zero bytes for the type-dependent union.
+- **`Actor`**: `[id, parent_id, description, bounding_box, semantic_tags, stream_token]`.
+  `semantic_tags` and `stream_token` are `std::vector<uint8_t>` and must be msgpack
+  `bin` (an empty array raises `std::bad_cast` in the client).
+- **Calls the Python client makes on `get_world()`** beyond the table above:
+  `get_required_files` (empty list is fine) and `query_lights_state` (empty list).
+- **Frames and time**: in asynchronous mode the backend ticks on wall clock every 0.05 s.
+  `set_episode_settings(synchronous_mode=True)` stops that; elapsed time therefore
+  includes the asynchronous ticks before the switch, as in CARLA.
+
+## Not implemented in the lightweight backend
+
+`spawn_actor_with_parent` (returns an error), sensors and their streams, weather,
+maps, batch commands, spectator, recorder. Bounding box height (10 m half-extent) is a
+placeholder.

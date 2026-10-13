@@ -19,6 +19,7 @@ not a dependency and nothing in the fork is planned to integrate with it. The
 | [plan.md](plan.md) | Commit history, status, limitations, next steps |
 | [unreal-integration.md](unreal-integration.md) | Static verification of tick order, time sync, velocity, frames |
 | [lightweight-backend-protocol.md](lightweight-backend-protocol.md) | Minimal CARLA protocol subset for a non-Unreal backend |
+| [lightweight-backend.md](lightweight-backend.md) | The Python lightweight backend: layout, usage, supported calls |
 | `decisions/` | Reserved for decision records (empty) |
 
 ## Status (branch `feature/native-vessel-prototype`, base `b544fa7cb`)
