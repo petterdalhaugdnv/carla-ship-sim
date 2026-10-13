@@ -32,6 +32,13 @@ not touch the legacy CARLA Python files. The `carla` client wheel is built local
 cd PythonAPI/lightweight_backend
 uv sync --python 3.12
 uv pip install <build>/PythonAPI/dist/carla-0.10.0-cp312-cp312-linux_x86_64.whl
+```
+
+A plain `uv sync` removes packages that are not in `pyproject.toml`, including the
+`carla` wheel (then `import carla` fails). After the wheel is installed, use
+`uv sync --inexact` or just `uv run`, which does not remove it; otherwise reinstall the wheel.
+
+```
 uv run python server.py --port 2000
 uv run python test_conformance.py --port 2100   # starts its own backend
 uv run python test_radar.py --port 2110        # use a different port per run
