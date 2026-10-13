@@ -30,6 +30,7 @@
 | End-to-end spawn, sync ticks, `apply_control`, pose/velocity/timestamps vs `VesselRunner` (lightweight backend, real client, 200 ticks, `test_conformance.py`) | Passed (12 checks, 2 runs) |
 | Viewer headless PNG against the lightweight backend (vessel turn, track, radar FOV and detections inspected) | Passed |
 | Attached radar through the real client (`test_radar.py`: frame/timestamp match, sensor transform, detection counts, reprojection error < 1e-4 m, radial velocities, destroy; 3 runs) | Passed (14 checks) |
+| Generic radar and conformance checks (`--external`, `--expect`) run against a separately started lightweight server | Passed (the `--expect` negative control failed as intended) |
 | Same scripts against an Unreal server | Not run |
 | End-to-end spawn on Unreal | Not run |
 
@@ -48,7 +49,7 @@
 ## Next steps
 
 1. Lightweight backend, next increment: synthetic LiDAR (and optionally a simple camera) payloads. Done: spawn, sync tick, control, viewer, attached radar. Radar limits: no occlusion or noise, one detection per point target.
-2. UE toolchain: CARLA UE 5.3 fork, content, plugin build.
+2. UE toolchain: CARLA UE 5.5 fork, content, plugin build (procedure and gates in `remote-unreal-runbook.md`).
 3. Flat water map (blocking `ECC_GameTraceChannel2`) and a ship mesh Blueprint subclass.
 4. Synchronous-mode test: spawn `vessel.mass.kvlcc2`, attach camera, LiDAR and radar, send `VesselControl` each tick, check pose, frame numbers and `sensor_transform`.
 5. Later: kinematic wave motion, then physics only if needed; sensor overlays; recorder support.

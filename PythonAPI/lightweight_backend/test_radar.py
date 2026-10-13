@@ -1,12 +1,19 @@
 #!/usr/bin/env python3
 """Radar check for a CARLA-protocol vessel backend, using the real carla client.
 
-Starts the lightweight backend with known point targets and checks that the
-attached radar delivers detections whose frame, timestamp, sensor transform and
-geometry are consistent with the snapshot and the target positions.
+Default mode starts the lightweight backend with known point targets and checks
+that the attached radar delivers detections whose frame, timestamp, sensor
+transform and geometry are consistent with the snapshot and the target positions.
 
-Usage: python test_radar.py [--external --host H --port P]
-(--external needs a server whose targets match TARGETS below.)
+With --external (for example an Unreal server) only backend-independent checks
+run, because target counts and Doppler depend on the world's geometry and on
+sampled rays: stream delivery, frame and timestamp equal to the snapshot, sensor
+transform equal to the vessel pose composed with the mount, detections finite and
+inside the configured range and field of view, and clean destruction. Use
+--expect N,E[,Z] (repeatable) to require that some detection reprojects, through
+the sensor transform, within --expect-tol metres of a known point in the world.
+
+Usage: python test_radar.py [--external --host H --port P] [--expect N,E[,Z] ...]
 """
 
 import argparse
@@ -22,10 +29,13 @@ import carla
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 from geometry import axes_to_rotator, local_to_world, rotator_to_axes  # noqa: E402
-from harness import backend_process, check, finish  # noqa: E402
+from harness import add_server_args, backend_process, check, finish  # noqa: E402
 
 DELTA = 0.05
 TICKS = 40
+FWD_FOV, FWD_RANGE = 60, 1000
+SIDE_FOV, SIDE_RANGE = 60, 400
+FOV_SLACK_RAD = math.radians(1.0)
 TARGET_ARGS = [
     "600,0,0",          # T1 ahead, static
     "600,200,0,-5,0",   # T2 ahead-starboard, closing at 5 m/s
@@ -77,7 +87,7 @@ def wait_data(q, frame):
             raise RuntimeError(f"missed radar frame {frame}, got {data.frame}")
 
 
-def run(host, port):
+def run(host, port, lightweight, expects, expect_tol):
     client = carla.Client(host, port)
     client.set_timeout(10.0)
     world = client.get_world()
@@ -102,8 +112,8 @@ def run(host, port):
 
     rel_fwd = carla.Transform(carla.Location(100.0, 0.0, 30.0), carla.Rotation(yaw=0))
     rel_side = carla.Transform(carla.Location(0.0, 0.0, 10.0), carla.Rotation(yaw=90))
-    fwd, q_fwd = make_radar(rel_fwd, 60, 1000)
-    side, q_side = make_radar(rel_side, 60, 400)
+    fwd, q_fwd = make_radar(rel_fwd, FWD_FOV, FWD_RANGE)
+    side, q_side = make_radar(rel_side, SIDE_FOV, SIDE_RANGE)
     check("radars are carla.Sensor", isinstance(fwd, carla.Sensor) and isinstance(side, carla.Sensor))
     check("sensor parent is the vessel", fwd.parent is not None and fwd.parent.id == vessel.id)
 
@@ -118,7 +128,8 @@ def run(host, port):
 
     control = carla.VesselControl(rudder_angle=0.1, propeller_speed=11.15)
     worst_tf, worst_geo, counts_fwd, counts_side = 0.0, 0.0, set(), set()
-    frames_ok = stamps_ok = True
+    frames_ok = stamps_ok = fov_ok = True
+    expect_hit = [False] * len(expects)
     for _ in range(TICKS):
         vessel.apply_control(control)
         frame = world.tick()
@@ -136,32 +147,49 @@ def run(host, port):
             yaw_err = abs((d.transform.rotation.yaw - vessel_tf.rotation.yaw - rel.rotation.yaw + 180) % 360 - 180)
             worst_tf = max(worst_tf, yaw_err * 1e-3)
 
-        t2 = (T2_START[0] + T2_SPEED * snap.timestamp.elapsed_seconds, T2_START[1], T2_START[2])
-        counts_fwd.add(len(d_fwd))
-        counts_side.add(len(d_side))
-        for d, known in ((d_fwd, [STATIC["T1"], t2]), (d_side, [STATIC["T5"]])):
-            origin = (d.transform.location.x, d.transform.location.y, d.transform.location.z)
+        for d, fov, range_m in ((d_fwd, FWD_FOV, FWD_RANGE), (d_side, SIDE_FOV, SIDE_RANGE)):
+            half = math.radians(fov / 2) + FOV_SLACK_RAD
             for det in d:
-                p = d.transform.transform(local_point(d, det))
-                nearest = min(known, key=lambda k: distance((p.x, p.y, p.z), k))
-                worst_geo = max(worst_geo, distance((p.x, p.y, p.z), nearest),
-                                abs(det.depth - distance(origin, nearest)))
+                values = (det.velocity, det.azimuth, det.altitude, det.depth)
+                fov_ok &= (all(math.isfinite(v) for v in values) and 0.0 <= det.depth <= range_m * 1.001
+                           and abs(det.azimuth) <= half and abs(det.altitude) <= half)
+                point = d.transform.transform(local_point(d, det))
+                for i, known in enumerate(expects):
+                    if distance((point.x, point.y, point.z), known) <= expect_tol:
+                        expect_hit[i] = True
+
+        if lightweight:
+            t2 = (T2_START[0] + T2_SPEED * snap.timestamp.elapsed_seconds, T2_START[1], T2_START[2])
+            counts_fwd.add(len(d_fwd))
+            counts_side.add(len(d_side))
+            for d, known in ((d_fwd, [STATIC["T1"], t2]), (d_side, [STATIC["T5"]])):
+                origin = (d.transform.location.x, d.transform.location.y, d.transform.location.z)
+                for det in d:
+                    p = d.transform.transform(local_point(d, det))
+                    nearest = min(known, key=lambda k: distance((p.x, p.y, p.z), k))
+                    worst_geo = max(worst_geo, distance((p.x, p.y, p.z), nearest),
+                                    abs(det.depth - distance(origin, nearest)))
 
     check("radar frame == snapshot frame", frames_ok)
     check("radar timestamp == snapshot timestamp", stamps_ok)
     check("sensor_transform == vessel pose composed with mount", worst_tf < 1e-3, f"worst {worst_tf:.2e}")
-    check("forward radar sees exactly T1 and T2", counts_fwd == {2}, f"counts {sorted(counts_fwd)}")
-    check("side radar sees exactly T5", counts_side == {1}, f"counts {sorted(counts_side)}")
-    check("detections reproject onto targets via sensor transform", worst_geo < 0.05, f"worst {worst_geo:.2e} m")
+    check("detections finite, within range and field of view", fov_ok)
+    for known, hit in zip(expects, expect_hit):
+        check(f"a detection reprojects within {expect_tol:g} m of expected point {known}", hit)
 
-    by_az = sorted(d_fwd, key=lambda det: det.azimuth)
-    static_v, closing_v = by_az[0].velocity, by_az[1].velocity
-    # T2 moves along -north, so its radial speed is -5 m/s times the north component of the line of sight.
-    p = d_fwd.transform.transform(local_point(d_fwd, by_az[1]))
-    expected_v = T2_SPEED * (p.x - d_fwd.transform.location.x) / by_az[1].depth
-    check("static target radial speed ~ -own speed", abs(static_v) < 0.2, f"{static_v:.4f} m/s")
-    check("moving target radial speed matches line-of-sight projection",
-          abs(closing_v - expected_v) < 0.1, f"{closing_v:.4f} vs {expected_v:.4f} m/s")
+    if lightweight:
+        check("forward radar sees exactly T1 and T2", counts_fwd == {2}, f"counts {sorted(counts_fwd)}")
+        check("side radar sees exactly T5", counts_side == {1}, f"counts {sorted(counts_side)}")
+        check("detections reproject onto targets via sensor transform", worst_geo < 0.05, f"worst {worst_geo:.2e} m")
+
+        by_az = sorted(d_fwd, key=lambda det: det.azimuth)
+        static_v, closing_v = by_az[0].velocity, by_az[1].velocity
+        # T2 moves along -north, so its radial speed is -5 m/s times the north component of the line of sight.
+        p = d_fwd.transform.transform(local_point(d_fwd, by_az[1]))
+        expected_v = T2_SPEED * (p.x - d_fwd.transform.location.x) / by_az[1].depth
+        check("static target radial speed ~ -own speed", abs(static_v) < 0.2, f"{static_v:.4f} m/s")
+        check("moving target radial speed matches line-of-sight projection",
+              abs(closing_v - expected_v) < 0.1, f"{closing_v:.4f} vs {expected_v:.4f} m/s")
 
     for sensor in (fwd, side):
         sensor.stop()
@@ -172,19 +200,27 @@ def run(host, port):
     world.apply_settings(settings)
 
 
+def parse_point(text):
+    values = [float(v) for v in text.split(",")]
+    if not 2 <= len(values) <= 3:
+        raise argparse.ArgumentTypeError("expected N,E[,Z]")
+    return tuple(values + [0.0] * (3 - len(values)))
+
+
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--external", action="store_true")
-    parser.add_argument("--host", default="127.0.0.1")
-    parser.add_argument("--port", type=int, default=2000)
+    add_server_args(parser)
+    parser.add_argument("--expect", action="append", default=[], type=parse_point, metavar="N,E[,Z]",
+                        help="world point (CARLA x,y,z in m) that some detection must reproject near")
+    parser.add_argument("--expect-tol", type=float, default=5.0, help="tolerance for --expect, m")
     args = parser.parse_args()
     check_geometry_against_carla()
     if args.external:
-        run(args.host, args.port)
+        run(args.host, args.port, False, args.expect, args.expect_tol)
     else:
         extra = [f"--target={t}" for t in TARGET_ARGS]
         with backend_process(args.host, args.port, extra):
-            run(args.host, args.port)
+            run(args.host, args.port, True, args.expect, args.expect_tol)
     finish()
 
 

@@ -20,6 +20,7 @@ not a dependency and nothing in the fork is planned to integrate with it. The
 | [unreal-integration.md](unreal-integration.md) | Static verification of tick order, time sync, velocity, frames |
 | [lightweight-backend-protocol.md](lightweight-backend-protocol.md) | Minimal CARLA protocol subset for a non-Unreal backend |
 | [lightweight-backend.md](lightweight-backend.md) | The Python lightweight backend: layout, usage, viewer, radar, supported calls |
+| [remote-unreal-runbook.md](remote-unreal-runbook.md) | Gated procedure for the first Unreal run on a remote machine |
 | `decisions/` | Reserved for decision records (empty) |
 
 ## Status (branch `feature/native-vessel-prototype`, base `b544fa7cb`)

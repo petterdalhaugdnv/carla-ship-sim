@@ -44,4 +44,4 @@ python -c "import carla; print(carla.VesselControl(rudder_angle=0.3, propeller_s
 
 ## Unreal build
 
-Not done. Requires the CARLA UE 5.3 fork, content and `UE5_BUILD_README.md` (`CarlaSetup.sh`). The default map is `Town10HD_Opt`.
+Not done. Requires the CARLA fork of Unreal Engine 5.5 (per `Docs/build_linux_ue5.md`), content and `CarlaSetup.sh`. The default map is `Town10HD_Opt`. Remote procedure: [remote-unreal-runbook.md](remote-unreal-runbook.md).

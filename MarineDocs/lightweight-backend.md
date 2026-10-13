@@ -77,6 +77,21 @@ Frame and timestamp equal the snapshot's. Limits: no occlusion, no noise,
 Stream connections are established asynchronously as in CARLA, so the first
 ticks after `listen()` may not be delivered; tests tick until data arrives.
 
+## Running the tests against another server
+
+Both tests take `--external --host H --port P` and then talk to that server (for example
+Unreal) instead of starting the backend; see `remote-unreal-runbook.md`.
+
+- `test_conformance.py`: `--pos-tol`, `--vel-tol`, `--yaw-tol` (defaults 1e-3 m, 1e-4 m/s,
+  1e-3 deg, tight for the same compiled runner) and `--spawn-z`. It also checks that z stays
+  at the spawn value.
+- `test_radar.py`: with `--external` only backend-independent checks run (streams, frame and
+  timestamp, sensor transform, detections finite and inside range and field of view).
+  `--expect N,E[,Z]` (repeatable, with `--expect-tol`) requires a detection near a known
+  world point. Target counts and Doppler are asserted only against the lightweight backend.
+  `--external` against a lightweight server also works (`server.py --target ...`) and was
+  run that way as a check of the generic path.
+
 ## Supported
 
 `version`, `get_episode_info`, `get_sensor_token`, `get_episode_settings`,

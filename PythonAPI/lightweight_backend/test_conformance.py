@@ -5,7 +5,11 @@ Starts the lightweight backend as a subprocess (or targets --host/--port with
 --external, e.g. an Unreal server) and checks spawn, synchronous ticks,
 VesselControl round-trip and pose/velocity against a local VesselRunner.
 
-Usage: python test_conformance.py [--external --host H --port P]
+The reference runner integrates in float64 on the client machine, so against a
+server that stores positions in single precision or converts to centimetres the
+tolerances may need loosening (--pos-tol, --vel-tol, --yaw-tol).
+
+Usage: python test_conformance.py [--external --host H --port P] [--spawn-z Z]
 """
 
 import argparse
@@ -17,7 +21,7 @@ import carla
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
-from harness import backend_process, check, finish  # noqa: E402
+from harness import add_server_args, backend_process, check, finish  # noqa: E402
 from vessel_runner import VesselRunner  # noqa: E402
 
 DELTA = 0.05
@@ -26,7 +30,7 @@ RUDDER_RAD = 0.3
 SHAFT_RAD_S = 11.15
 
 
-def run(host, port):
+def run(host, port, tol, spawn_z):
     client = carla.Client(host, port)
     client.set_timeout(10.0)
     world = client.get_world()
@@ -38,7 +42,7 @@ def run(host, port):
     check("sync mode applied", world.get_settings().synchronous_mode)
 
     blueprint = world.get_blueprint_library().find("vessel.mass.kvlcc2")
-    start = carla.Transform(carla.Location(10.0, -5.0, 0.0), carla.Rotation(yaw=30.0))
+    start = carla.Transform(carla.Location(10.0, -5.0, spawn_z), carla.Rotation(yaw=30.0))
     vessel = world.spawn_actor(blueprint, start)
     check("spawned carla.Vessel", isinstance(vessel, carla.Vessel), type(vessel).__name__)
 
@@ -46,7 +50,7 @@ def run(host, port):
     reference.set_control(RUDDER_RAD, SHAFT_RAD_S)
     control = carla.VesselControl(rudder_angle=RUDDER_RAD, propeller_speed=SHAFT_RAD_S)
 
-    frames, stamps, worst_pos, worst_vel, worst_yaw = [], [], 0.0, 0.0, 0.0
+    frames, stamps, worst_pos, worst_vel, worst_yaw, worst_z = [], [], 0.0, 0.0, 0.0, 0.0
     for _ in range(TICKS):
         vessel.apply_control(control)
         frame = world.tick()
@@ -61,6 +65,7 @@ def run(host, port):
         worst_vel = max(worst_vel, math.hypot(velocity.x - v_north, velocity.y - v_east))
         dyaw = (transform.rotation.yaw - yaw + 180.0) % 360.0 - 180.0
         worst_yaw = max(worst_yaw, abs(dyaw))
+        worst_z = max(worst_z, abs(transform.location.z - spawn_z))
 
     check("frames strictly +1", all(b - a == 1 for a, b in zip(frames, frames[1:])))
     check("snapshot frame == tick frame", world.get_snapshot().frame == frames[-1])
@@ -69,9 +74,10 @@ def run(host, port):
           all(abs(s - DELTA) < 1e-6 for s in steps), f"max err {max(abs(s - DELTA) for s in steps):.2e}")
     check("elapsed advances by (ticks-1) * delta",
           abs((stamps[-1] - stamps[0]) - (TICKS - 1) * DELTA) < 1e-6, f"{stamps[-1] - stamps[0]:.6f}")
-    check("position matches runner", worst_pos < 1e-3, f"worst {worst_pos:.2e} m")
-    check("velocity matches runner", worst_vel < 1e-4, f"worst {worst_vel:.2e} m/s")
-    check("yaw matches runner", worst_yaw < 1e-3, f"worst {worst_yaw:.2e} deg")
+    check("position matches runner", worst_pos < tol.pos, f"worst {worst_pos:.2e} m, tol {tol.pos:g}")
+    check("velocity matches runner", worst_vel < tol.vel, f"worst {worst_vel:.2e} m/s, tol {tol.vel:g}")
+    check("yaw matches runner", worst_yaw < tol.yaw, f"worst {worst_yaw:.2e} deg, tol {tol.yaw:g}")
+    check("z stays at the spawn value", worst_z < 1e-3, f"worst {worst_z:.2e} m")
     moved = math.hypot(transform.location.x - 10.0, transform.location.y + 5.0)
     check("vessel actually moved", moved > 1e-3, f"{moved:.4f} m (shaft lag is slow from rest)")
 
@@ -89,15 +95,19 @@ def run(host, port):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--external", action="store_true")
-    parser.add_argument("--host", default="127.0.0.1")
-    parser.add_argument("--port", type=int, default=2000)
+    add_server_args(parser)
+    parser.add_argument("--pos-tol", type=float, default=1e-3, help="position tolerance, m")
+    parser.add_argument("--vel-tol", type=float, default=1e-4, help="velocity tolerance, m/s")
+    parser.add_argument("--yaw-tol", type=float, default=1e-3, help="yaw tolerance, deg")
+    parser.add_argument("--spawn-z", type=float, default=0.0,
+                        help="spawn height, m (use the water surface height on an Unreal map)")
     args = parser.parse_args()
+    tol = argparse.Namespace(pos=args.pos_tol, vel=args.vel_tol, yaw=args.yaw_tol)
     if args.external:
-        run(args.host, args.port)
+        run(args.host, args.port, tol, args.spawn_z)
     else:
         with backend_process(args.host, args.port):
-            run(args.host, args.port)
+            run(args.host, args.port, tol, args.spawn_z)
     finish()
 
 

@@ -47,3 +47,11 @@ def backend_process(host, port, extra_args=()):
 def finish():
     print("\nRESULT:", "FAILED " + ", ".join(failures) if failures else "all checks passed")
     sys.exit(1 if failures else 0)
+
+
+def add_server_args(parser):
+    parser.add_argument("--external", action="store_true",
+                        help="use an already running server (for example Unreal) instead of "
+                             "starting the lightweight backend")
+    parser.add_argument("--host", default="127.0.0.1")
+    parser.add_argument("--port", type=int, default=2000)

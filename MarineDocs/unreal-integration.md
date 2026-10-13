@@ -92,6 +92,36 @@ the actor pose with what it last wrote and, if different, calls
 `TestPoseAndReset`). A teleport made by the same RPC that applies a control in the
 same frame is processed once per tick.
 
+## Second static review (2026-10-13)
+
+Re-read the vessel path before the first remote run. Still static; nothing was compiled.
+
+- **Sensors see the new pose.** `ASensor` runs `PostPhysTick` from a world post-tick
+  delegate (`Sensor/Sensor.cpp`, `PostPhysTickInternal`), after actor ticks, so
+  `ARadar` and the scene capture sensors read the pose `UVesselDynamicsComponent`
+  wrote the same frame.
+- **Radar own velocity** is a finite difference of the radar's own location
+  (`ARadar::CalculateCurrentVelocity`), not the parent's `GetVelocity()`. It therefore
+  includes the lever arm of the vessel's yaw rate. The lightweight backend uses the
+  parent's velocity and ignores the lever arm, so Doppler differs by about
+  `yaw_rate * mount_distance`.
+- **Radar sampling.** `ARadar::SendLineTraces` casts `points_per_second * dt` random
+  rays inside an ellipse at `range` on `ECC_GameTraceChannel2`, and reports the ray
+  direction (azimuth, altitude) with the hit distance, so reprojecting
+  `depth * direction` through the sensor transform gives the hit point. The lightweight
+  radar is deterministic with a rectangular field of view.
+- **Doppler on targets** uses the hit actor's `GetVelocity()`: a vessel target works,
+  a static mesh gives zero. A vessel must have collision on `ECC_GameTraceChannel2`
+  (a Blueprint mesh) before a radar can hit it.
+- **Actor-type switches.** `Recorder/CarlaRecorder.cpp`, `Game/FrameData.cpp` and
+  `Recorder/CarlaReplayerHelper.cpp` switch on `FCarlaActor::ActorType` without
+  `default` and already omit `TrafficSign`, so adding `Vessel` cannot add a new
+  exhaustiveness warning, and vessels are skipped (not recorded), as documented.
+- **Possible first-frame transient:** `ARadar::BeginPlay` stores `PrevLocation` before
+  the radar is attached, so the first Doppler values may be wrong (*unverified*).
+
+The run procedure is in [remote-unreal-runbook.md](remote-unreal-runbook.md).
+
 ## Open points that need a running Unreal
 
 - Compile and UHT: `GENERATED_BODY` in `VesselDynamicsComponent.h`/`CarlaVessel.h`,
