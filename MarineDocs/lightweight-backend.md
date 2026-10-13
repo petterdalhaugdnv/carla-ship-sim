@@ -23,27 +23,33 @@ results match by construction; the Python side only does protocol encoding.
 
 ## Run
 
-Needs `g++`, Python with `msgpack`, and the `carla` wheel (see `setup.md`).
+Needs `g++` and [uv](https://docs.astral.sh/uv/). The repo-local environment lives in
+`PythonAPI/lightweight_backend/` (`pyproject.toml`, `uv.lock`, git-ignored `.venv/`); it does
+not touch the legacy CARLA Python files. The `carla` client wheel is built locally
+(see `setup.md`) and is installed separately because it must match the interpreter (3.10 to 3.12):
 
 ```
-python PythonAPI/lightweight_backend/server.py --port 2000
-python PythonAPI/lightweight_backend/test_conformance.py --port 2100   # starts its own backend
-python PythonAPI/lightweight_backend/test_radar.py --port 2110        # use a different port per run
+cd PythonAPI/lightweight_backend
+uv sync --python 3.12
+uv pip install <build>/PythonAPI/dist/carla-0.10.0-cp312-cp312-linux_x86_64.whl
+uv run python server.py --port 2000
+uv run python test_conformance.py --port 2100   # starts its own backend
+uv run python test_radar.py --port 2110        # use a different port per run
 ```
 
 Point targets for the radar (north, east, [z, [v_north, v_east]] in metres and m/s;
 repeatable; north maps to CARLA x, east to y):
 
 ```
-python PythonAPI/lightweight_backend/server.py --target=800,0 --target=600,300,0,-2,0
+uv run python server.py --target=800,0 --target=600,300,0,-2,0
 ```
 
-Viewer (needs `matplotlib`). Without `--external` it starts its own backend:
+Viewer (installed by `uv sync`). Without `--external` it starts its own backend:
 
 ```
-python PythonAPI/lightweight_backend/viewer.py --output chart.png --ticks 1200 --rudder 0.1 \
+uv run python viewer.py --output chart.png --ticks 1200 --rudder 0.1 \
     --target=800,0,0 --target=600,300,0,-2,0      # headless PNG with radar overlay
-python PythonAPI/lightweight_backend/viewer.py --live --external --port 2000   # window, any server
+uv run python viewer.py --live --external --port 2000   # window, any server
 ```
 
 `--radar` (or any `--target`) attaches a forward radar and draws its field of view and

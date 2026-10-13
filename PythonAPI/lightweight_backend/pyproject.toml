@@ -1,0 +1,17 @@
+[project]
+name = "carla-marine-lightweight-backend"
+version = "0.0.0"
+description = "Non-Unreal CARLA-protocol backend, viewer and tests for the marine vessel fork"
+requires-python = ">=3.10,<3.13"
+dependencies = [
+    "msgpack>=1.0",
+    "numpy",
+    "matplotlib",
+]
+
+# The `carla` client wheel is built locally (see MarineDocs/setup.md) and must match this
+# interpreter (cp310 to cp312). It is deliberately not declared here; install it with
+# `uv pip install <path-to-wheel>` after `uv sync`.
+
+[tool.uv]
+package = false
