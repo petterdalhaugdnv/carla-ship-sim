@@ -33,6 +33,11 @@ FVector ACarlaVessel::GetVesselVelocity() const
   return VesselDynamics != nullptr ? VesselDynamics->GetVelocity() : FVector::ZeroVector;
 }
 
+float ACarlaVessel::GetVesselYawRateDegPerSec() const
+{
+  return VesselDynamics != nullptr ? VesselDynamics->GetYawRateDegPerSec() : 0.0f;
+}
+
 FVector ACarlaVessel::GetVelocity() const
 {
   return GetVesselVelocity();

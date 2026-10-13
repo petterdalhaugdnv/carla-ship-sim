@@ -16,6 +16,7 @@
 #include "Carla/Traffic/TrafficLightGroup.h"
 #include "Carla/Traffic/TrafficSignBase.h"
 #include "Carla/Traffic/SignComponent.h"
+#include "Carla/Vessel/CarlaVessel.h"
 #include "Carla/Walker/WalkerController.h"
 
 #include <util/disable-ue4-macros.h>
@@ -247,6 +248,11 @@ static auto FWorldObserver_GetDormantActorState(const FCarlaActor &View, const F
 
 static carla::geom::Vector3D FWorldObserver_GetAngularVelocity(const AActor &Actor)
 {
+  // Vessels are kinematic and have no physics body; report the yaw rate (deg/s).
+  if (const auto *Vessel = Cast<ACarlaVessel>(&Actor))
+  {
+    return {0.0f, 0.0f, Vessel->GetVesselYawRateDegPerSec()};
+  }
   const auto RootComponent = Cast<UPrimitiveComponent>(Actor.GetRootComponent());
   const FVector AngularVelocity =
       RootComponent != nullptr ?

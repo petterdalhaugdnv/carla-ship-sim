@@ -37,6 +37,10 @@ public:
   UFUNCTION(BlueprintCallable, Category = "Vessel")
   FVector GetVesselVelocity() const;
 
+  /// Yaw rate in deg/s, positive clockwise seen from above.
+  UFUNCTION(BlueprintCallable, Category = "Vessel")
+  float GetVesselYawRateDegPerSec() const;
+
   UFUNCTION(BlueprintCallable, Category = "Vessel")
   UVesselDynamicsComponent *GetVesselDynamics() const { return VesselDynamics; }
 
