@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Conformance check for a CARLA-protocol vessel backend, using the real carla client.
 
-Starts the lightweight backend in-process (or targets --host/--port with
+Starts the lightweight backend as a subprocess (or targets --host/--port with
 --external, e.g. an Unreal server) and checks spawn, synchronous ticks,
 VesselControl round-trip and pose/velocity against a local VesselRunner.
 
@@ -10,41 +10,20 @@ Usage: python test_conformance.py [--external --host H --port P]
 
 import argparse
 import math
-import socket
-import subprocess
 import sys
-import time
 from pathlib import Path
 
 import carla
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
+from harness import backend_process, check, finish  # noqa: E402
 from vessel_runner import VesselRunner  # noqa: E402
 
 DELTA = 0.05
 TICKS = 200
 RUDDER_RAD = 0.3
 SHAFT_RAD_S = 11.15
-
-failures = []
-
-
-def wait_for_port(host, port, timeout=60.0):
-    deadline = time.monotonic() + timeout
-    while time.monotonic() < deadline:
-        try:
-            socket.create_connection((host, port), timeout=1.0).close()
-            return
-        except OSError:
-            time.sleep(0.2)
-    raise RuntimeError(f"backend did not start on {host}:{port}")
-
-
-def check(name, condition, detail=""):
-    print(("PASS " if condition else "FAIL ") + name + (f"  [{detail}]" if detail else ""))
-    if not condition:
-        failures.append(name)
 
 
 def run(host, port):
@@ -114,20 +93,12 @@ def main():
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=2000)
     args = parser.parse_args()
-    backend = None
-    if not args.external:
-        # Separate process: the carla client holds the GIL during blocking RPCs.
-        backend = subprocess.Popen(
-            [sys.executable, str(HERE / "server.py"), "--host", args.host, "--port", str(args.port)])
-        wait_for_port(args.host, args.port)
-    try:
+    if args.external:
         run(args.host, args.port)
-    finally:
-        if backend is not None:
-            backend.terminate()
-            backend.wait(timeout=10)
-    print("\nRESULT:", "FAILED " + ", ".join(failures) if failures else "all checks passed")
-    sys.exit(1 if failures else 0)
+    else:
+        with backend_process(args.host, args.port):
+            run(args.host, args.port)
+    finish()
 
 
 if __name__ == "__main__":
