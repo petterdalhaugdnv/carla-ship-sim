@@ -25,19 +25,18 @@ results match by construction; the Python side only does protocol encoding.
 
 Needs `g++` and [uv](https://docs.astral.sh/uv/). The repo-local environment lives in
 `PythonAPI/lightweight_backend/` (`pyproject.toml`, `uv.lock`, git-ignored `.venv/`); it does
-not touch the legacy CARLA Python files. The `carla` client wheel is built locally
-(see `setup.md`) and is installed separately because it must match the interpreter (3.10 to 3.12):
+not touch the legacy CARLA Python files. The `carla` client wheel is built locally outside the
+repository (see `setup.md`) and referenced from `pyproject.toml` by relative path
+(`[tool.uv.sources]`: `../../../build-client/PythonAPI/dist/carla-0.10.0-cp312-cp312-linux_x86_64.whl`).
+Python is pinned to 3.12 to match that wheel. If your build directory or Python version
+differs, edit that path and `requires-python`. `uv sync` fails if the wheel is missing.
 
 ```
 cd PythonAPI/lightweight_backend
-uv sync --python 3.12
-uv pip install <build>/PythonAPI/dist/carla-0.10.0-cp312-cp312-linux_x86_64.whl
+uv sync
 ```
 
-A plain `uv sync` removes packages that are not in `pyproject.toml`, including the
-`carla` wheel (then `import carla` fails). After the wheel is installed, use
-`uv sync --inexact` or just `uv run`, which does not remove it; otherwise reinstall the wheel.
-
+Then:
 ```
 uv run python server.py --port 2000
 uv run python test_conformance.py --port 2100   # starts its own backend
