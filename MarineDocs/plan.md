@@ -43,7 +43,7 @@
 - KVLCC2 is 320 m long; default sensor ranges are small (LiDAR 10 m, radar 100 m).
 - Unverified UE risks: UHT and `GENERATED_BODY`, `disable-ue4-macros` include pairing in `VesselDynamicsComponent.h`, name clashes (`Reset`, `GetVelocity`), large-map origin rebasing. Details in `unreal-integration.md`.
 - Resolved on `feature/vessel-engine-free-runner`: the one-substep pose lag for tick lengths that are not multiples of 0.02 s (the runner now integrates exactly the tick length), and zero angular velocity in the snapshot.
-- Behaviour change to keep in mind: substeps are now `ceil(dt/0.02)` equal parts, so a 0.05 s tick uses 3 x 0.0167 s rather than 2 x 0.02 s with a carried remainder. Results at 0.02 s ticks are unchanged.
+- **Accepted decision (2026-10-13):** the dynamics step is an integer fraction of the simulation tick. Substeps are now `ceil(dt/0.02)` equal parts, so a 0.05 s tick uses 3 x 0.0167 s rather than 2 x 0.02 s with a carried remainder. Results at 0.02 s ticks are unchanged.
 
 ## Next steps
 
